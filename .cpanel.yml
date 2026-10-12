@@ -1,0 +1,22 @@
+---
+# cPanel Git Version Control deploy for the Laravel API + admin panel.
+# The repo is deployed in place: point the api subdomain's document root
+# at <this repo>/public in cPanel > Domains.
+#
+# Before the first deploy, create .env in the repo folder on the server
+# (copy .env.example, fill in DB + APP_URL, run `php artisan key:generate`).
+#
+# Admin assets (public/build) are NOT built here because shared hosting has
+# no Node. Run `npm run build` locally and commit public/build before pushing.
+deployment:
+  tasks:
+    # PHP 8.2+ CLI (Laravel 12). Check the version in cPanel > MultiPHP Manager.
+    - export PHP_BIN=/opt/cpanel/ea-php82/root/usr/bin/php
+    - export COMPOSER_BIN=/opt/cpanel/composer/bin/composer
+    - $PHP_BIN $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction
+    - $PHP_BIN artisan migrate --force
+    - '[ -L public/storage ] || $PHP_BIN artisan storage:link'
+    - $PHP_BIN artisan optimize:clear
+    - $PHP_BIN artisan config:cache
+    - $PHP_BIN artisan route:cache
+    - $PHP_BIN artisan view:cache

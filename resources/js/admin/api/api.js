@@ -1,6 +1,7 @@
 import axios from "axios";
 
 export default axios.create({
-    baseURL: "http://127.0.0.1:8000",
+    // Admin is served by Laravel itself, so call the API on the same origin
+    baseURL: "/",
     withCredentials: true,
 });

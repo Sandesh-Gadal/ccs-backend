@@ -12,7 +12,7 @@ class CategoryController extends Controller
     // GET /categories
     public function index()
     {
-        return response()->json(Category::orderBy('name')->get());
+        return response()->json(Category::withCount('products')->orderBy('position')->orderBy('name')->get());
     }
 
     // GET /categories/{id}
@@ -31,7 +31,8 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
+            'position' => 'nullable|integer|min:0|max:999',
         ]);
 
         $slug = Str::slug($request->name);
@@ -39,6 +40,7 @@ class CategoryController extends Controller
         $category = Category::create([
             'name' => $request->name,
             'slug' => $slug,
+            'position' => $request->input('position', (Category::max('position') ?? 0) + 1),
         ]);
 
         return response()->json($category, 201);
@@ -51,7 +53,8 @@ class CategoryController extends Controller
        
 
         $request->validate([
-            'name' => 'required|string|max:255'
+            'name' => 'required|string|max:255',
+            'position' => 'nullable|integer|min:0|max:999',
         ]);
 
         $category = Category::find($id);
@@ -62,6 +65,9 @@ class CategoryController extends Controller
 
         $category->name = $request->name;
         $category->slug = Str::slug($request->name);
+        if ($request->filled('position')) {
+            $category->position = $request->integer('position');
+        }
         $category->save();
 
         return response()->json($category);

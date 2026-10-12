@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    container_name: ccsithub-api
+    env_file: .env.docker
+    ports:
+      - "8000:80"
+    volumes:
+      # Uploaded product images survive rebuilds
+      - ccsithub_storage:/var/www/html/storage/app/public
+    networks:
+      - db
+    restart: unless-stopped
+
+volumes:
+  ccsithub_storage:
+
+networks:
+  # Reuses the existing MySQL container from the deadbody_mapping project
+  db:
+    name: deadbody_mapping_default
+    external: true

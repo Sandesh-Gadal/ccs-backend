@@ -59,6 +59,8 @@ export default function Categories() {
                                 <th className="p-2 border">ID</th>
                                 <th className="p-2 border">Name</th>
                                 <th className="p-2 border">Slug</th>
+                                <th className="p-2 border">Order</th>
+                                <th className="p-2 border">Products</th>
                                 <th className="p-2 border">Actions</th>
                             </tr>
                         </thead>
@@ -69,6 +71,8 @@ export default function Categories() {
                                     <td className="p-2 border">{c.id}</td>
                                     <td className="p-2 border">{c.name}</td>
                                     <td className="p-2 border">{c.slug}</td>
+                                    <td className="p-2 border text-center">{c.position}</td>
+                                    <td className="p-2 border text-center">{c.products_count}</td>
                                     <td className="p-2 border flex gap-2">
                                         <button
                                             className="bg-yellow-500 text-white px-3 py-1 rounded"

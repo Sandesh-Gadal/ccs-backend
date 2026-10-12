@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { X } from 'lucide-react';
+import { X, ImagePlus, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+
+const MAX_PHOTOS = 8;
 
 export default function ProductForm({ product, onClose, onSaved }) {
     const [categories, setCategories] = useState([]);
+    const [brands, setBrands] = useState([]);
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
@@ -15,10 +18,13 @@ export default function ProductForm({ product, onClose, onSaved }) {
         price: '',
         quantity: '',
         category_id: '',
-        image: null,
+        brand_id: '',
     });
 
-    const [imageUrl, setImageUrl] = useState(null);
+    // Gallery: saved photos and new uploads in display order; the first one is the cover
+    const [photos, setPhotos] = useState([]);
+    const [removedIds, setRemovedIds] = useState([]);
+    const [dragOver, setDragOver] = useState(false);
 
     useEffect(() => {
         if (product) {
@@ -29,9 +35,13 @@ export default function ProductForm({ product, onClose, onSaved }) {
                 price: product.price || '',
                 quantity: product.quantity || '',
                 category_id: product.category_id || '',
-                image: null,
+                brand_id: product.brand_id || '',
             });
-            setImageUrl(product.image ? `/storage/${product.image}` : null);
+            const saved = product.images?.length
+                ? product.images
+                : [];
+            setPhotos(saved.map((img) => ({ key: `e${img.id}`, kind: 'existing', id: img.id, url: `/storage/${img.path}` })));
+            setRemovedIds([]);
         }
 
         const fetchCategories = async () => {
@@ -46,6 +56,7 @@ export default function ProductForm({ product, onClose, onSaved }) {
         };
 
         fetchCategories();
+        axios.get('/brands').then((res) => setBrands(res.data)).catch(() => {});
     }, [product]);
 
     const handleChange = (e) => {
@@ -53,17 +64,49 @@ export default function ProductForm({ product, onClose, onSaved }) {
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        setFormData((prev) => ({ ...prev, image: file }));
+    const addFiles = (fileList) => {
+        const files = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'));
+        setPhotos((prev) => {
+            const room = MAX_PHOTOS - prev.length;
+            if (files.length > room) {
+                alert(`A product can have at most ${MAX_PHOTOS} photos. Only the first ${Math.max(room, 0)} were added.`);
+            }
+            const added = files.slice(0, Math.max(room, 0)).map((file, i) => ({
+                key: `n-${Date.now()}-${i}-${file.name}`,
+                kind: 'new',
+                file,
+                url: URL.createObjectURL(file),
+            }));
+            return [...prev, ...added];
+        });
+    };
 
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => setImageUrl(ev.target.result);
-            reader.readAsDataURL(file);
-        } else {
-            setImageUrl(product && product.image ? `/storage/${product.image}` : null);
-        }
+    const handleFileChange = (e) => {
+        addFiles(e.target.files);
+        e.target.value = '';
+    };
+
+    const removePhoto = (key) => {
+        setPhotos((prev) => {
+            const photo = prev.find((p) => p.key === key);
+            if (photo?.kind === 'existing') setRemovedIds((ids) => [...ids, photo.id]);
+            if (photo?.kind === 'new') URL.revokeObjectURL(photo.url);
+            return prev.filter((p) => p.key !== key);
+        });
+    };
+
+    const movePhoto = (index, delta) => {
+        setPhotos((prev) => {
+            const target = index + delta;
+            if (target < 0 || target >= prev.length) return prev;
+            const next = [...prev];
+            [next[index], next[target]] = [next[target], next[index]];
+            return next;
+        });
+    };
+
+    const makeCover = (index) => {
+        setPhotos((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
     };
 
     const handleSubmit = async (e) => {
@@ -81,15 +124,23 @@ export default function ProductForm({ product, onClose, onSaved }) {
                     if (value !== '') {
                         submitData.append(key, value);
                     }
-                } else if (key === 'image') {
-                    if (value instanceof File) {
-                        submitData.append(key, value);
-                    }
                 } else {
                     submitData.append(key, value);
                 }
             }
         }
+
+        // Photos: new files as images[], plus the full order ("e<id>" saved, "n<index>" new)
+        let newIndex = 0;
+        photos.forEach((photo) => {
+            if (photo.kind === 'new') {
+                submitData.append('images[]', photo.file);
+                submitData.append('image_order[]', `n${newIndex++}`);
+            } else {
+                submitData.append('image_order[]', `e${photo.id}`);
+            }
+        });
+        removedIds.forEach((id) => submitData.append('remove_images[]', id));
 
         try {
             let response;
@@ -113,11 +164,13 @@ export default function ProductForm({ product, onClose, onSaved }) {
             // IMPORTANT: Get the category from our categories list
             const categoryId = response.data.category_id || formData.category_id;
             const category = categories.find(c => c.id == categoryId);
+            const brand = brands.find((b) => b.id == (response.data.brand_id || formData.brand_id));
 
             // Create the full product object with category
             const fullProduct = {
                 ...response.data,
-                category: category || null
+                category: category || null,
+                brand: brand || null,
             };
 
             // Call onSaved with the updated/created product data
@@ -331,6 +384,24 @@ export default function ProductForm({ product, onClose, onSaved }) {
                         </select>
                     </div>
 
+                    {/* Brand */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Brand (Optional)</label>
+                        <select
+                            name="brand_id"
+                            value={formData.brand_id}
+                            onChange={handleChange}
+                            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                            <option value="">-- No brand --</option>
+                            {brands.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                    {b.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
                     {/* Label */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Label (Optional)</label>
@@ -355,28 +426,64 @@ export default function ProductForm({ product, onClose, onSaved }) {
                         />
                     </div>
 
-                    {/* Image */}
+                    {/* Photos */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Product Image {!product && '(Optional)'}
-                        </label>
-                        <input
-                            type="file"
-                            name="image"
-                            onChange={handleFileChange}
-                            accept="image/*"
-                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                        />
+                        <div className="flex items-baseline justify-between mb-1">
+                            <label className="block text-sm font-medium text-gray-700">Product Photos</label>
+                            <span className="text-xs text-gray-500">{photos.length}/{MAX_PHOTOS} · first photo is the cover</span>
+                        </div>
 
-                        {imageUrl && (
-                            <div className="mt-2">
-                                <p className="text-xs text-gray-500 mb-1">Preview:</p>
-                                <img
-                                    src={imageUrl}
-                                    alt="Preview"
-                                    className="h-20 w-20 object-cover rounded-md border shadow-sm"
-                                />
+                        {photos.length > 0 && (
+                            <div className="grid grid-cols-4 gap-2 mb-2">
+                                {photos.map((photo, index) => (
+                                    <div key={photo.key} className="group relative aspect-square rounded-md border bg-gray-50 overflow-hidden">
+                                        <img src={photo.url} alt="" className="h-full w-full object-contain p-1" />
+                                        {index === 0 && (
+                                            <span className="absolute left-1 top-1 rounded bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">Cover</span>
+                                        )}
+                                        {photo.kind === 'new' && (
+                                            <span className="absolute right-1 bottom-1 rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">New</span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => removePhoto(photo.key)}
+                                            className="absolute right-1 top-1 rounded-full bg-white/90 p-0.5 text-gray-700 shadow hover:bg-red-500 hover:text-white"
+                                            title="Remove photo"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                        <div className="absolute inset-x-0 bottom-0 flex justify-center gap-1 bg-black/50 py-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                            <button type="button" onClick={() => movePhoto(index, -1)} disabled={index === 0} className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-30" title="Move left">
+                                                <ChevronLeft size={14} />
+                                            </button>
+                                            {index !== 0 && (
+                                                <button type="button" onClick={() => makeCover(index)} className="rounded p-0.5 text-white hover:bg-white/20" title="Make cover">
+                                                    <Star size={14} />
+                                                </button>
+                                            )}
+                                            <button type="button" onClick={() => movePhoto(index, 1)} disabled={index === photos.length - 1} className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-30" title="Move right">
+                                                <ChevronRight size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
+                        )}
+
+                        {photos.length < MAX_PHOTOS && (
+                            <label
+                                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                                onDragLeave={() => setDragOver(false)}
+                                onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+                                className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed p-4 text-center text-sm transition-colors ${
+                                    dragOver ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-300 text-gray-500 hover:border-indigo-400 hover:bg-gray-50'
+                                }`}
+                            >
+                                <ImagePlus size={22} />
+                                <span><span className="font-semibold text-indigo-600">Click to add photos</span> or drag them here</span>
+                                <span className="text-xs text-gray-400">JPG, PNG or WebP, up to 4 MB each</span>
+                                <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleFileChange} className="sr-only" />
+                            </label>
                         )}
                     </div>
 

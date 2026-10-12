@@ -123,4 +123,19 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Panel Login
+    |--------------------------------------------------------------------------
+    |
+    | Used by AdminUserSeeder to create the admin account.
+    |
+    */
+
+    'admin' => [
+        'name' => env('ADMIN_NAME', 'Chitwan Computer Admin'),
+        'email' => env('ADMIN_EMAIL'),
+        'password' => env('ADMIN_PASSWORD'),
+    ],
+
 ];

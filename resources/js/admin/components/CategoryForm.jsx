@@ -4,12 +4,12 @@ import axios from "axios";
 export default function CategoryForm({ category, onClose, onSaved }) {
   
     const [name, setName] = useState(category ? category.name : "");
+    const [position, setPosition] = useState(category?.position ?? "");
 
     const submit = async (e) => {
         e.preventDefault();
 
-        // 2. Data only includes 'name'
-        const data = { name };
+        const data = { name, ...(position !== "" ? { position: Number(position) } : {}) };
 
         try {
             if (category) {
@@ -45,8 +45,19 @@ export default function CategoryForm({ category, onClose, onSaved }) {
                         onChange={(e) => setName(e.target.value)}
                         required
                     />
-
-
+                    <div>
+                        <label className="block text-sm text-gray-600 mb-1">
+                            Display order <span className="text-gray-400">(lower shows first on the website)</span>
+                        </label>
+                        <input
+                            type="number"
+                            min="0"
+                            className="w-full border p-2 rounded"
+                            placeholder="Leave empty to add at the end"
+                            value={position}
+                            onChange={(e) => setPosition(e.target.value)}
+                        />
+                    </div>
 
                     <div className="flex justify-end gap-2 pt-4">
                         <button
