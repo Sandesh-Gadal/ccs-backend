@@ -20,18 +20,7 @@ class SampleCatalogSeeder extends Seeder
 {
     private const IMAGE_DIR = 'products/sample';
 
-    // Storefront display order of the categories
-    private const CATEGORY_ORDER = [
-        'Laptops', 'Desktops', 'Monitors', 'CCTV Cameras', 'NVR & DVR', 'Networking',
-        'Storage Devices', 'Memory', 'Graphics Cards', 'Printers', 'Accessories',
-    ];
-
-    // Earlier versions of this seeder used these names
-    private const RENAMED_CATEGORIES = [
-        'storage' => 'Storage Devices',
-        'cctv' => 'CCTV Cameras',
-    ];
-
+    // Accent colours for the generated product images
     private const BRAND_COLORS = [
         'ASUS' => '#00539B', 'Acer' => '#83B81A', 'Dell' => '#007DB8', 'HP' => '#0096D6',
         'Lenovo' => '#E2231A', 'MSI' => '#E60012', 'Gigabyte' => '#F39200', 'Zotac' => '#F5A100',
@@ -46,22 +35,16 @@ class SampleCatalogSeeder extends Seeder
 
     public function run(): void
     {
-        $catalog = $this->catalog();
-        $brands = $this->seedBrands($catalog);
+        // Categories and brands come from their own seeders, which are safe for production
+        $this->call([CategorySeeder::class, BrandSeeder::class]);
 
-        foreach (self::RENAMED_CATEGORIES as $oldSlug => $newName) {
-            if (! Category::where('slug', Str::slug($newName))->exists()) {
-                Category::where('slug', $oldSlug)->update(['name' => $newName, 'slug' => Str::slug($newName)]);
-            }
-        }
+        $catalog = $this->catalog();
+        $brands = Brand::all()->keyBy('slug');
 
         // Insert in reverse so the first item listed ends up as the newest product
         $rows = [];
         foreach ($catalog as $categoryName => $items) {
-            $category = Category::updateOrCreate(
-                ['slug' => Str::slug($categoryName)],
-                ['name' => $categoryName, 'position' => array_search($categoryName, self::CATEGORY_ORDER) + 1]
-            );
+            $category = Category::where('slug', Str::slug($categoryName))->firstOrFail();
             foreach ($items as $item) {
                 $rows[] = [$category, ...$item];
             }
@@ -87,7 +70,7 @@ class SampleCatalogSeeder extends Seeder
                     'price' => $price,
                     'quantity' => $qty,
                     'category_id' => $category->id,
-                    'brand_id' => $brands[$brand]->id ?? null,
+                    'brand_id' => $brands[Str::slug($brand)]->id ?? null,
                 ]
             );
 
@@ -99,40 +82,6 @@ class SampleCatalogSeeder extends Seeder
         }
 
         $this->command?->info('Seeded '.count($rows).' sample products in '.count($catalog).' categories.');
-    }
-
-    /**
-     * One brand per manufacturer in the catalogue, with a logo. Uses the real logo
-     * from database/seeders/brand-logos when present, otherwise a coloured wordmark.
-     *
-     * @return array<string, Brand> keyed by the catalogue's brand name
-     */
-    private function seedBrands(array $catalog): array
-    {
-        $names = collect($catalog)->flatten(1)->pluck(1)->unique()->reject(fn ($b) => $b === 'Custom');
-        $brands = [];
-
-        foreach ($names as $name) {
-            $slug = Str::slug($name);
-            $logoPath = "brands/sample/{$slug}.svg";
-            $file = __DIR__."/brand-logos/{$slug}.svg";
-            $svg = is_file($file) ? file_get_contents($file) : $this->wordmark($name, self::BRAND_COLORS[$name] ?? '#0F52BA');
-            Storage::disk('public')->put($logoPath, $svg);
-
-            $brands[$name] = Brand::updateOrCreate(['slug' => $slug], ['name' => $name, 'logo' => $logoPath]);
-        }
-
-        return $brands;
-    }
-
-    private function wordmark(string $name, string $color): string
-    {
-        $text = htmlspecialchars(strtoupper($name), ENT_XML1);
-        $width = 30 + mb_strlen($name) * 30;
-
-        return <<<SVG
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {$width} 60"><text x="50%" y="44" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="40" letter-spacing="1" fill="{$color}">{$text}</text></svg>
-SVG;
     }
 
     private function describe(string $name, array $specs): string
