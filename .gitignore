@@ -25,3 +25,6 @@ Thumbs.db
 # Docker
 .env.docker
 /docker-data
+
+# cPanel/PHP error logs written on the server
+error_log

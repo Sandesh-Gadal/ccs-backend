@@ -10,9 +10,10 @@
 # no Node. Run `npm run build` locally and commit public/build before pushing.
 deployment:
   tasks:
-    # PHP 8.2+ CLI (Laravel 12). Check the version in cPanel > MultiPHP Manager.
-    - export PHP_BIN=/opt/cpanel/ea-php82/root/usr/bin/php
-    - export COMPOSER_BIN=/opt/cpanel/composer/bin/composer
+    # Paths on the Himalayan Host server (CloudLinux alt-php 8.3, matches `php -v` in Terminal)
+    - export PHP_BIN=/opt/alt/php83/usr/bin/php
+    - export COMPOSER_BIN=/usr/local/bin/composer
+    - cd "$HOME/repositories/ccs-backend"
     - $PHP_BIN $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction
     - $PHP_BIN artisan migrate --force
     - '[ -L public/storage ] || $PHP_BIN artisan storage:link'
