@@ -16,6 +16,7 @@ export default function ProductForm({ product, onClose, onSaved }) {
         label: '',
         description: '',
         price: '',
+        mrp: '',
         quantity: '',
         category_id: '',
         brand_id: '',
@@ -33,6 +34,7 @@ export default function ProductForm({ product, onClose, onSaved }) {
                 label: product.label || '',
                 description: product.description || '',
                 price: product.price || '',
+                mrp: product.mrp || '',
                 quantity: product.quantity || '',
                 category_id: product.category_id || '',
                 brand_id: product.brand_id || '',
@@ -331,19 +333,56 @@ export default function ProductForm({ product, onClose, onSaved }) {
                         />
                     </div>
 
-                    {/* Price */}
+                    {/* Prices */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
-                        <input
-                            type="number"
-                            name="price"
-                            value={formData.price}
-                            onChange={handleChange}
-                            required
-                            step="0.01"
-                            min="0"
-                            className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">MRP (Rs.)</label>
+                                <input
+                                    type="number"
+                                    name="mrp"
+                                    value={formData.mrp}
+                                    onChange={handleChange}
+                                    step="0.01"
+                                    min="0"
+                                    placeholder="Optional"
+                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Sale price (Rs.) *</label>
+                                <input
+                                    type="number"
+                                    name="price"
+                                    value={formData.price}
+                                    onChange={handleChange}
+                                    required
+                                    step="0.01"
+                                    min="0"
+                                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                            </div>
+                        </div>
+                        {(() => {
+                            const mrp = parseFloat(formData.mrp);
+                            const price = parseFloat(formData.price);
+                            if (!(mrp > 0) || !(price > 0)) {
+                                return <p className="mt-1 text-xs text-gray-500">Leave MRP empty if there's no discount. The website shows MRP crossed out when it's higher than the sale price.</p>;
+                            }
+                            if (mrp < price) {
+                                return <p className="mt-1 text-xs text-red-600">MRP must be equal to or higher than the sale price.</p>;
+                            }
+                            if (mrp === price) {
+                                return <p className="mt-1 text-xs text-gray-500">No discount: only the sale price will be shown.</p>;
+                            }
+                            const save = mrp - price;
+                            return (
+                                <p className="mt-1 text-xs text-emerald-700">
+                                    Shows as <span className="line-through text-gray-400">Rs.{mrp.toLocaleString('en-IN')}</span>{' '}
+                                    <span className="font-semibold">Rs.{price.toLocaleString('en-IN')}</span> · {Math.round((save / mrp) * 100)}% off, customer saves Rs.{save.toLocaleString('en-IN')}
+                                </p>
+                            );
+                        })()}
                     </div>
 
                     {/* Quantity */}

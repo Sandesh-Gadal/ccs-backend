@@ -177,6 +177,8 @@ class ProductController extends Controller
             'label' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'price' => 'required|numeric|min:0',
+            // MRP is optional; when set it can't be below the sale price
+            'mrp' => 'nullable|numeric|gte:price',
             'quantity' => 'required|integer|min:0',
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
@@ -187,9 +189,11 @@ class ProductController extends Controller
             'remove_images.*' => 'integer',
             'image_order' => 'nullable|array',
             'image_order.*' => ['string', 'regex:/^[en]\d+$/'],
+        ], [
+            'mrp.gte' => 'MRP must be equal to or higher than the sale price.',
         ]);
 
-        return collect($data)->only(['name', 'label', 'description', 'price', 'quantity', 'category_id', 'brand_id'])->all();
+        return collect($data)->only(['name', 'label', 'description', 'price', 'mrp', 'quantity', 'category_id', 'brand_id'])->all();
     }
 
     /**

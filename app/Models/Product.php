@@ -15,6 +15,7 @@ class Product extends Model
         'label',
         'description',
         'price',
+        'mrp',
         'quantity',
         'image',
         'category_id',

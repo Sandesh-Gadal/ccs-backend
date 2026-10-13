@@ -68,6 +68,7 @@ class SampleCatalogSeeder extends Seeder
                     'label' => $label,
                     'description' => $this->describe($name, $specs),
                     'price' => $price,
+                    'mrp' => $this->sampleMrp($name, $price, $label),
                     'quantity' => $qty,
                     'category_id' => $category->id,
                     'brand_id' => $brands[Str::slug($brand)]->id ?? null,
@@ -82,6 +83,22 @@ class SampleCatalogSeeder extends Seeder
         }
 
         $this->command?->info('Seeded '.count($rows).' sample products in '.count($catalog).' categories.');
+    }
+
+    /**
+     * About half the products get an MRP 6–22% above the sale price ("Hot deal" ones always do),
+     * rounded the way shops price things. Derived from the name so re-seeding gives the same result.
+     */
+    private function sampleMrp(string $name, float $price, ?string $label): ?float
+    {
+        $hash = crc32($name);
+        if ($price <= 0 || ($label !== 'Hot deal' && $hash % 100 >= 50)) {
+            return null;
+        }
+        $markup = 1.06 + ($hash % 17) / 100;
+        $step = $price >= 10000 ? 500 : 100;
+
+        return ceil($price * $markup / $step) * $step;
     }
 
     private function describe(string $name, array $specs): string

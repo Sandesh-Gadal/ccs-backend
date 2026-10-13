@@ -6,6 +6,24 @@ import ProductForm from '../components/ProductForm';
 // Assuming your Laravel public disk is served at /storage
 const IMAGE_BASE_URL = '/storage/';
 
+// Sale price, with the MRP crossed out when it's higher
+function PriceCell({ product }) {
+    const price = parseFloat(product.price);
+    const mrp = parseFloat(product.mrp);
+    const fmt = (n) => `Rs.${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    return (
+        <span className="inline-flex flex-col leading-tight">
+            <span>{fmt(price)}</span>
+            {mrp > price && (
+                <span className="text-xs font-normal text-gray-400">
+                    <span className="line-through">{fmt(mrp)}</span>{' '}
+                    <span className="text-emerald-600">{Math.round(((mrp - price) / mrp) * 100)}% off</span>
+                </span>
+            )}
+        </span>
+    );
+}
+
 export default function Products() {
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -232,7 +250,7 @@ const handleSaved = async (savedProduct) => {
                                             </span>
                                         </td>
                                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                                            Rs.{parseFloat(product.price).toFixed(2)}
+                                            <PriceCell product={product} />
                                         </td>
                                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                                             {product.quantity ? product.quantity : 'N/A'}
@@ -287,7 +305,7 @@ const handleSaved = async (savedProduct) => {
                                     <p className="text-xs text-gray-500 mt-1">{product.label || 'No label'}</p>
                                     <div className="flex items-center justify-between mt-2">
                                         <span className="text-sm font-semibold text-gray-900">
-                                            ${parseFloat(product.price).toFixed(2)}
+                                            <PriceCell product={product} />
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <button
