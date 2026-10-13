@@ -17,12 +17,17 @@ class Product extends Model
         'price',
         'mrp',
         'quantity',
+        'is_published',
         'image',
         'category_id',
         'brand_id',
     ];
 
     protected $with = ['category', 'brand', 'images'];
+
+    protected $casts = [
+        'is_published' => 'boolean',
+    ];
 
     public function category()
     {
@@ -37,6 +42,11 @@ class Product extends Model
     public function images()
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->where('is_published', true);
     }
 
     /**

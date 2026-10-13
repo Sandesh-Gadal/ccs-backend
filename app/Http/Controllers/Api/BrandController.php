@@ -12,9 +12,11 @@ use Illuminate\Validation\Rule;
 class BrandController extends Controller
 {
     // GET /brands
-    public function index()
+    public function index(Request $request)
     {
-        return Brand::withCount('products')->orderBy('name')->get();
+        // Admins see every product in the count; the website only counts published ones
+        return Brand::withCount(['products' => fn ($q) => $q->when(! $request->user(), fn ($p) => $p->published())])
+            ->orderBy('name')->get();
     }
 
     // GET /brands/{id}

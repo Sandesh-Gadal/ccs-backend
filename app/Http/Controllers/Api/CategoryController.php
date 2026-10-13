@@ -10,9 +10,13 @@ use Illuminate\Support\Str;
 class CategoryController extends Controller
 {
     // GET /categories
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Category::withCount('products')->orderBy('position')->orderBy('name')->get());
+        // Admins see every product in the count; the website only counts published ones
+        return response()->json(
+            Category::withCount(['products' => fn ($q) => $q->when(! $request->user(), fn ($p) => $p->published())])
+                ->orderBy('position')->orderBy('name')->get()
+        );
     }
 
     // GET /categories/{id}

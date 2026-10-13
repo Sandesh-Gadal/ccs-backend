@@ -1,10 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Search, Edit2, Trash2, Plus, X, Filter } from 'lucide-react';
+import { Search, Edit2, Trash2, Plus, X, Filter, Eye, EyeOff } from 'lucide-react';
 import ProductForm from '../components/ProductForm';
 
 // Assuming your Laravel public disk is served at /storage
 const IMAGE_BASE_URL = '/storage/';
+
+function StatusBadge({ published }) {
+    return published ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Published
+        </span>
+    ) : (
+        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-gray-400" /> Draft
+        </span>
+    );
+}
 
 // Sale price, with the MRP crossed out when it's higher
 function PriceCell({ product }) {
@@ -32,6 +44,7 @@ export default function Products() {
     const [showForm, setShowForm] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all'); // all | published | draft
 
     // Function to fetch products
     const fetchProducts = useCallback(async () => {
@@ -51,17 +64,20 @@ export default function Products() {
         fetchProducts();
     }, [fetchProducts]);
 
-    // Search functionality
+    // Search and status filter
     useEffect(() => {
+        const byStatus = products.filter((p) =>
+            statusFilter === 'all' ? true : statusFilter === 'published' ? p.is_published !== false : p.is_published === false
+        );
         if (!searchTerm.trim()) {
-            setFilteredProducts(products);
+            setFilteredProducts(byStatus);
             setIsSearching(false);
             return;
         }
 
         setIsSearching(true);
         const term = searchTerm.toLowerCase();
-        const filtered = products.filter(product =>
+        const filtered = byStatus.filter(product =>
             product.name.toLowerCase().includes(term) ||
             (product.label && product.label.toLowerCase().includes(term)) ||
             (product.description && product.description.toLowerCase().includes(term)) ||
@@ -69,7 +85,22 @@ export default function Products() {
             product.price.toString().includes(term)
         );
         setFilteredProducts(filtered);
-    }, [searchTerm, products]);
+    }, [searchTerm, products, statusFilter]);
+
+    const draftCount = products.filter((p) => p.is_published === false).length;
+
+    // Publish / unpublish in one click (updates the list right away, reverts if the server says no)
+    const togglePublished = async (product) => {
+        const next = product.is_published === false;
+        setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, is_published: next } : p)));
+        try {
+            await axios.patch(`/products/${product.id}/publish`, { is_published: next });
+        } catch (error) {
+            console.error('Error changing visibility:', error);
+            alert('Could not change visibility. Please try again.');
+            setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, is_published: !next } : p)));
+        }
+    };
 
     // Handler for Delete - Optimistic update
     const handleDelete = async (id) => {
@@ -179,6 +210,25 @@ const handleSaved = async (savedProduct) => {
                 </div>
             </div>
 
+            {/* Status tabs */}
+            <div className="mb-4 flex flex-wrap gap-2">
+                {[
+                    { key: 'all', label: 'All', count: products.length },
+                    { key: 'published', label: 'Published', count: products.length - draftCount },
+                    { key: 'draft', label: 'Drafts', count: draftCount },
+                ].map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setStatusFilter(tab.key)}
+                        className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                            statusFilter === tab.key ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50'
+                        }`}
+                    >
+                        {tab.label} <span className="opacity-70">{tab.count}</span>
+                    </button>
+                ))}
+            </div>
+
             {/* Products Table - Responsive Container */}
             <div className="bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200">
                 {loading ? (
@@ -208,12 +258,13 @@ const handleSaved = async (savedProduct) => {
                                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">Category</th>
                                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                                    <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                                     <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {filteredProducts.map((product) => (
-                                    <tr key={product.id} className="hover:bg-gray-50 transition-colors duration-150">
+                                    <tr key={product.id} className={`hover:bg-gray-50 transition-colors duration-150 ${product.is_published === false ? 'bg-gray-50/70 text-gray-400' : ''}`}>
                                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                                             <div className="h-10 w-10 flex-shrink-0">
                                                 {product.image ? (
@@ -255,8 +306,18 @@ const handleSaved = async (savedProduct) => {
                                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                                             {product.quantity ? product.quantity : 'N/A'}
                                         </td>
+                                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm">
+                                            <StatusBadge published={product.is_published !== false} />
+                                        </td>
                                         <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => togglePublished(product)}
+                                                    className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-150"
+                                                    title={product.is_published === false ? 'Publish (show on website)' : 'Unpublish (hide from website)'}
+                                                >
+                                                    {product.is_published === false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                                </button>
                                                 <button
                                                     onClick={() => handleEdit(product)}
                                                     className="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-md transition-colors duration-150"
@@ -301,13 +362,23 @@ const handleSaved = async (savedProduct) => {
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-medium text-gray-900 truncate">{product.name}</h4>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="text-sm font-medium text-gray-900 truncate">{product.name}</h4>
+                                        <StatusBadge published={product.is_published !== false} />
+                                    </div>
                                     <p className="text-xs text-gray-500 mt-1">{product.label || 'No label'}</p>
                                     <div className="flex items-center justify-between mt-2">
                                         <span className="text-sm font-semibold text-gray-900">
                                             <PriceCell product={product} />
                                         </span>
                                         <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => togglePublished(product)}
+                                                className="text-gray-700 text-sm font-medium"
+                                            >
+                                                {product.is_published === false ? 'Publish' : 'Unpublish'}
+                                            </button>
+                                            <span className="text-gray-300">|</span>
                                             <button
                                                 onClick={() => handleEdit(product)}
                                                 className="text-indigo-600 text-sm font-medium"

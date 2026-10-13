@@ -40,6 +40,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/products', [ProductController::class, 'store']);
     Route::put('/products/{id}', [ProductController::class, 'update']);
     Route::delete('/products/{id}', [ProductController::class, 'destroy']);
+    Route::patch('/products/{id}/publish', [ProductController::class, 'setPublished']);
 
     Route::post('/categories', [CategoryController::class, 'store']);
     Route::put('/categories/{id}', [CategoryController::class, 'update']);   // use PUT for update

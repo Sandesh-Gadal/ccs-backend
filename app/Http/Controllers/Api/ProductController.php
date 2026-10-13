@@ -26,7 +26,11 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::query()->filter($this->filters($request))->sorted($request->query('sort'));
+        // Signed-in admins see drafts too; the public website only sees published products
+        $query = Product::query()
+            ->when(! $request->user(), fn ($q) => $q->published())
+            ->filter($this->filters($request))
+            ->sorted($request->query('sort'));
 
         if (! $request->hasAny(['page', 'per_page'])) {
             return $query->get();
@@ -45,25 +49,26 @@ class ProductController extends Controller
     {
         $f = $this->filters($request);
 
-        $categoryCounts = Product::query()->filter($f, 'category')
+        $categoryCounts = Product::published()->filter($f, 'category')
             ->selectRaw('category_id, count(*) as count')->groupBy('category_id')->pluck('count', 'category_id');
-        $brandCounts = Product::query()->filter($f, 'brand')
+        $brandCounts = Product::published()->filter($f, 'brand')
             ->selectRaw('brand_id, count(*) as count')->groupBy('brand_id')->pluck('count', 'brand_id');
 
-        $categories = Category::has('products')->withCount('products')->orderBy('position')->orderBy('id')->get()
+        $published = fn ($q) => $q->published();
+        $categories = Category::whereHas('products', $published)->withCount(['products' => $published])->orderBy('position')->orderBy('id')->get()
             ->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'slug' => $c->slug, 'total' => $c->products_count, 'count' => (int) ($categoryCounts[$c->id] ?? 0)]);
 
         // Ordered by catalogue size so the list doesn't reshuffle as filters change
-        $brands = Brand::has('products')->withCount('products')->orderByDesc('products_count')->orderBy('name')->get()
+        $brands = Brand::whereHas('products', $published)->withCount(['products' => $published])->orderByDesc('products_count')->orderBy('name')->get()
             ->map(fn ($b) => ['id' => $b->id, 'name' => $b->name, 'slug' => $b->slug, 'logo' => $b->logo, 'total' => $b->products_count, 'count' => (int) ($brandCounts[$b->id] ?? 0)]);
 
-        $prices = Product::where('price', '>', 0)->selectRaw('min(price) as min, max(price) as max')->first();
+        $prices = Product::published()->where('price', '>', 0)->selectRaw('min(price) as min, max(price) as max')->first();
 
         return [
             'categories' => $categories,
             'brands' => $brands,
             'price' => ['min' => (float) ($prices->min ?? 0), 'max' => (float) ($prices->max ?? 0)],
-            'total' => Product::query()->filter($f)->count(),
+            'total' => Product::published()->filter($f)->count(),
         ];
     }
 
@@ -75,17 +80,31 @@ class ProductController extends Controller
     {
         $limit = min(max((int) $request->query('limit', 4), 1), 12);
 
-        return Category::has('products')->withCount('products')->orderBy('position')->orderBy('id')->get()
+        $published = fn ($q) => $q->published();
+
+        return Category::whereHas('products', $published)->withCount(['products' => $published])->orderBy('position')->orderBy('id')->get()
             ->map(fn ($category) => [
                 'category' => ['id' => $category->id, 'name' => $category->name, 'slug' => $category->slug],
                 'total' => $category->products_count,
-                'products' => $category->products()->orderByRaw('quantity <= 0')->orderByDesc('id')->limit($limit)->get(),
+                'products' => $category->products()->published()->orderByRaw('quantity <= 0')->orderByDesc('id')->limit($limit)->get(),
             ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        return Product::findOrFail($id);
+        return Product::query()->when(! $request->user(), fn ($q) => $q->published())->findOrFail($id);
+    }
+
+    /**
+     * PATCH /products/{id}/publish  { is_published: true|false }
+     */
+    public function setPublished(Request $request, $id)
+    {
+        $data = $request->validate(['is_published' => 'required|boolean']);
+        $product = Product::findOrFail($id);
+        $product->update(['is_published' => $data['is_published']]);
+
+        return $product->fresh();
     }
 
     public function store(Request $request)
@@ -179,6 +198,7 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             // MRP is optional; when set it can't be below the sale price
             'mrp' => 'nullable|numeric|gte:price',
+            'is_published' => 'sometimes|boolean',
             'quantity' => 'required|integer|min:0',
             'category_id' => 'nullable|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
@@ -193,7 +213,7 @@ class ProductController extends Controller
             'mrp.gte' => 'MRP must be equal to or higher than the sale price.',
         ]);
 
-        return collect($data)->only(['name', 'label', 'description', 'price', 'mrp', 'quantity', 'category_id', 'brand_id'])->all();
+        return collect($data)->only(['name', 'label', 'description', 'price', 'mrp', 'quantity', 'is_published', 'category_id', 'brand_id'])->all();
     }
 
     /**

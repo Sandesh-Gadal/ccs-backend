@@ -24,6 +24,8 @@ export default function ProductForm({ product, onClose, onSaved }) {
 
     // Gallery: saved photos and new uploads in display order; the first one is the cover
     const [photos, setPhotos] = useState([]);
+    // New products are published by default
+    const [published, setPublished] = useState(product ? product.is_published !== false : true);
     const [removedIds, setRemovedIds] = useState([]);
     const [dragOver, setDragOver] = useState(false);
 
@@ -143,6 +145,7 @@ export default function ProductForm({ product, onClose, onSaved }) {
             }
         });
         removedIds.forEach((id) => submitData.append('remove_images[]', id));
+        submitData.append('is_published', published ? '1' : '0');
 
         try {
             let response;
@@ -525,6 +528,30 @@ export default function ProductForm({ product, onClose, onSaved }) {
                             </label>
                         )}
                     </div>
+
+                    {/* Visibility */}
+                    <label className="flex cursor-pointer items-start justify-between gap-4 rounded-lg border border-gray-200 p-3">
+                        <span>
+                            <span className="block text-sm font-medium text-gray-800">
+                                {published ? 'Published' : 'Draft (hidden)'}
+                            </span>
+                            <span className="block text-xs text-gray-500">
+                                {published
+                                    ? 'Visible on the website.'
+                                    : "Saved in the admin panel only. Customers can't see or open it."}
+                            </span>
+                        </span>
+                        <span className="relative mt-0.5 inline-flex flex-shrink-0">
+                            <input
+                                type="checkbox"
+                                checked={published}
+                                onChange={(e) => setPublished(e.target.checked)}
+                                className="peer sr-only"
+                            />
+                            <span className="h-6 w-11 rounded-full bg-gray-300 transition-colors peer-checked:bg-emerald-500" />
+                            <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+                        </span>
+                    </label>
 
                     {/* Buttons */}
                     <div className="flex justify-end gap-3 pt-4 border-t">
