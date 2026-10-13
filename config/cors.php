@@ -16,8 +16,8 @@ return [
     'allowed_origins' => [
         'https://chitwancomputer.com.np',
         'https://www.chitwancomputer.com.np',
-        'http://localhost:5175', 'http://localhost:5174', 'http://localhost:5173', 'http://192.168.1.64:5174', 'http://192.168.1.147:5174', // React dev URLs
-    ],
+        'https://api.chitwancomputer.com.np'   
+         ],
 
     'allowed_origins_patterns' => [],
 
