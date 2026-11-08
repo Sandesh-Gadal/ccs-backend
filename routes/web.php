@@ -25,15 +25,17 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-// Public read-only endpoints (used by the storefront)
-Route::get('/products', [ProductController::class, 'index']);
-Route::get('/products/facets', [ProductController::class, 'facets']);
-Route::get('/products/overview', [ProductController::class, 'overview']);
-Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
-Route::get('/categories',[CategoryController::class, 'index']);
-Route::get('/categories/{id}', [CategoryController::class, 'show']);
-Route::get('/brands', [BrandController::class, 'index']);
-Route::get('/brands/{id}', [BrandController::class, 'show']);
+// Public read-only endpoints (used by the storefront), rate limited per IP (see AppServiceProvider)
+Route::middleware('throttle:storefront')->group(function () {
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/facets', [ProductController::class, 'facets']);
+    Route::get('/products/overview', [ProductController::class, 'overview']);
+    Route::get('/products/{id}', [ProductController::class, 'show'])->whereNumber('id');
+    Route::get('/categories', [CategoryController::class, 'index']);
+    Route::get('/categories/{id}', [CategoryController::class, 'show']);
+    Route::get('/brands', [BrandController::class, 'index']);
+    Route::get('/brands/{id}', [BrandController::class, 'show']);
+});
 
 // Write endpoints (admin panel only)
 Route::middleware('auth')->group(function () {

@@ -194,7 +194,7 @@ class ProductController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'label' => 'nullable|string|max:255',
-            'description' => 'nullable|string',
+            'description' => 'nullable|string|max:20000',
             'price' => 'required|numeric|min:0',
             // MRP is optional; when set it can't be below the sale price
             'mrp' => 'nullable|numeric|gte:price',

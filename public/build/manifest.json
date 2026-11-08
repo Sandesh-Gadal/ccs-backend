@@ -1,6 +1,6 @@
 {
-  "_index-B9ygI19o.js": {
-    "file": "assets/index-B9ygI19o.js",
+  "_index-DZgmwYj1.js": {
+    "file": "assets/index-DZgmwYj1.js",
     "name": "index"
   },
   "resources/css/app.css": {
@@ -13,21 +13,21 @@
     ]
   },
   "resources/js/admin/main.jsx": {
-    "file": "assets/main-DCkxvY92.js",
+    "file": "assets/main-3Vk3wdAb.js",
     "name": "main",
     "src": "resources/js/admin/main.jsx",
     "isEntry": true,
     "imports": [
-      "_index-B9ygI19o.js"
+      "_index-DZgmwYj1.js"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-CtNv5fXw.js",
+    "file": "assets/app-4I5aY2tr.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_index-B9ygI19o.js"
+      "_index-DZgmwYj1.js"
     ]
   }
 }
