@@ -16,7 +16,9 @@ return [
     'allowed_origins' => [
         'https://chitwancomputer.com.np',
         'https://www.chitwancomputer.com.np',
-        // 'http://localhost:5175', 'http://localhost:5174', 'http://localhost:5173', 'http://192.168.1.64:5174', 'http://192.168.1.147:5174', // React dev URLs
+        // Dev storefront URLs come from CORS_DEV_ORIGINS (comma-separated) in your local .env.
+        // Leave it unset on the production server so only the live site can call the API.
+        ...array_values(array_filter(array_map('trim', explode(',', (string) env('CORS_DEV_ORIGINS', ''))))),
     ],
 
     'allowed_origins_patterns' => [],
